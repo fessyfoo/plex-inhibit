@@ -1,32 +1,12 @@
 #!/bin/sh
-
-CHECK_INTERVAL=60
-INHIBIT_IDENTIFIER="Plex Traffic"
-INHIBIT_PID=""
+#
+CHECK_INTERVAL=30
 LOCK_FILE="/run/plex_inhibit/lock"
-GOT_LOCK=0
-LOCK_FD=3  # Use a fixed file descriptor number >= 3
+
 
 log_message() {
-  printf "%s - %s\n" "$(date)" "$1"
+  printf "$1\n"
 }
-
-clean_up() {
-  if [ "$GOT_LOCK" -eq 1 ]; then
-    flock -u "$LOCK_FD" # Using the variable here is okay for flock
-    log_message "Released lock on $LOCK_FILE"
-  fi
-
-  exec 3<&-          # Close file descriptor 3
-
-  if [ -n "$INHIBIT_PID" ]; then
-    kill "$INHIBIT_PID" >/dev/null 2>&1
-  fi
-
-  exit
-}
-
-trap clean_up EXIT HUP INT QUIT TERM
 
 check_plex_traffic() {
   netstat -tunap 2>/dev/null | 
@@ -35,56 +15,46 @@ check_plex_traffic() {
   return "$?"
 }
 
-start_inhibit() {
-  if [ -z "$INHIBIT_PID" ] || 
-    ! kill -0 "$INHIBIT_PID" > /dev/null 2>&1; then
+inhibit_loop() {
+  log_message \
+    "Inhibiting idle (Plex traffic detected)"
 
-    systemd-inhibit \
-      --what=idle \
-      --who="$INHIBIT_IDENTIFIER" \
-      --why="Plex is actively streaming." \
-      sleep infinity &
+  while check_plex_traffic
+  do
+    sleep "$CHECK_INTERVAL"
+  done
 
-    INHIBIT_PID="$!"
-    log_message \
-      "Inhibiting idle (Plex traffic detected), PID: $INHIBIT_PID"
-  fi
-}
-
-stop_inhibit() {
-  if [ -n "$INHIBIT_PID" ] &&
-    kill "$INHIBIT_PID" > /dev/null 2>&1; then
-    log_message \
-      "Releasing idle inhibit (no Plex traffic), PID: $PID"
-    INHIBIT_PID=""
-  fi
+  log_message \
+    "Releasing idle inhibit (no Plex traffic), PID: $PID"
 }
 
 main_loop() {
-  while true; do
-    if check_plex_traffic; then
-      start_inhibit
+  log_message "$0 start"
+  while true
+  do
+    if check_plex_traffic
+    then
+      systemd-inhibit \
+	--what=idle \
+	--who="Plex" \
+	--why="Plex activity" \
+	"$0" inhibit
     else
-      stop_inhibit
+      sleep "$CHECK_INTERVAL"
     fi
-    sleep "$CHECK_INTERVAL"
   done
 }
 
-# Ensure the lock file exists and is open on FD 3
-touch "$LOCK_FILE"
-exec 3<>"$LOCK_FILE" # Open for reading and writing on FD 3
-
-# Attempt to acquire the lock
-if flock -n 3; then
-  GOT_LOCK=1
-  main_loop
-else
-  log_message \
-    "Another instance of plex_inhibit.sh is already running. Exiting."
-  exec 3<&- # Close FD 3 if we didn't get the lock
-  exit 1
-fi
-
-# Clean up lock (though trap should handle this)
-clean_up
+if test "$FLOCKER" != "$0"
+  then
+    env FLOCKER="$0" flock -en "$0" "$0" "$@" ||
+      log_message \
+	"Another instance of $0 is already running. Exiting."
+  else
+    if test "$1" = "inhibit"
+      then
+	inhibit_loop
+      else
+	main_loop
+      fi
+  fi
