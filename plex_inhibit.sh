@@ -49,8 +49,10 @@ if test "$FLOCKER" != "$0"
 then
   # Ensure only one main instance runs using flock
   env FLOCKER="$0" flock -en "$0" "$0" "$@" || {
-    log_message "Another instance of $0 is already running. Exiting."
-    exit 1
+    err="$?"
+    log_message "flock $0 failed. (exit $err)" \
+      "An instance may already running"
+    exit $err
   }
 else
   # This block runs only if the lock was acquired
