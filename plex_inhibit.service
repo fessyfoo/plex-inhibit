@@ -1,0 +1,14 @@
+[Unit]
+Description=Monitor Plex traffic and inhibit idle
+Requires=plexmediaserver.service
+After=plexmediaserver.service
+
+[Service]
+User=plex
+ExecStart=/usr/local/bin/plex_inhibit.sh
+Restart=on-failure
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=plexmediaserver.service
