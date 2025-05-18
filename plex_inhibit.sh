@@ -3,29 +3,26 @@
 CHECK_INTERVAL=30
 LOCK_FILE="/run/plex_inhibit/lock"
 
-
 log_message() {
   printf "$1\n"
 }
 
 check_plex_traffic() {
-  netstat -tunap 2>/dev/null | 
-    grep ":32400 " | 
-      grep -q -E "ESTABLISHED|RELATED" 
+  netstat -tunap 2>/dev/null |
+    grep ":32400 " |
+    grep -q -E "ESTABLISHED|RELATED"
   return "$?"
 }
 
 inhibit_loop() {
-  log_message \
-    "Inhibiting idle (Plex traffic detected)"
+  log_message "Inhibiting idle (Plex traffic detected)"
 
   while check_plex_traffic
   do
     sleep "$CHECK_INTERVAL"
   done
 
-  log_message \
-    "Releasing idle inhibit (no Plex traffic), PID: $PID"
+  log_message "Releasing idle inhibit (no Plex traffic)"
 }
 
 main_loop() {
@@ -34,11 +31,18 @@ main_loop() {
   do
     if check_plex_traffic
     then
-      systemd-inhibit \
-	--what=idle \
-	--who="Plex" \
-	--why="Plex activity" \
-	"$0" inhibit
+      # Run inhibit_loop under systemd-inhibit
+      if systemd-inhibit \
+        --what=idle \
+        --who="Plex" \
+        --why="Plex activity" \
+        "$0" inhibit
+      then
+        : # systemd-inhibit likely succeeded
+      else
+        log_message "Warning: systemd-inhibit failed with exit status $?"
+        sleep "$CHECK_INTERVAL" # Wait before retrying
+      fi
     else
       sleep "$CHECK_INTERVAL"
     fi
@@ -46,15 +50,18 @@ main_loop() {
 }
 
 if test "$FLOCKER" != "$0"
+then
+  # Ensure only one main instance runs using flock
+  env FLOCKER="$0" flock -en "$0" "$0" "$@" || {
+    log_message "Another instance of $0 is already running. Exiting."
+    exit 1
+  }
+else
+  # This block runs only if the lock was acquired
+  if test "$1" = "inhibit"
   then
-    env FLOCKER="$0" flock -en "$0" "$0" "$@" ||
-      log_message \
-	"Another instance of $0 is already running. Exiting."
+    inhibit_loop
   else
-    if test "$1" = "inhibit"
-      then
-	inhibit_loop
-      else
-	main_loop
-      fi
+    main_loop
   fi
+fi
