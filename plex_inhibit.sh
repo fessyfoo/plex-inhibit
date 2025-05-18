@@ -1,7 +1,6 @@
 #!/bin/sh
 #
 CHECK_INTERVAL=30
-LOCK_FILE="/run/plex_inhibit/lock"
 
 log_message() {
   echo "$@"
