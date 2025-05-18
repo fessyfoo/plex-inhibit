@@ -32,17 +32,13 @@ main_loop() {
     if check_plex_traffic
     then
       # Run inhibit_loop under systemd-inhibit
-      if systemd-inhibit \
+      systemd-inhibit \
         --what=idle \
         --who="Plex" \
         --why="Plex activity" \
-        "$0" inhibit
-      then
-        : # systemd-inhibit likely succeeded
-      else
-        log_message "Warning: systemd-inhibit failed with exit status $?"
-        sleep "$CHECK_INTERVAL" # Wait before retrying
-      fi
+        "$0" inhibit ||
+	  sleep "$CHECK_INTERVAL"
+        # systemd-inhibit already prints error message if it fails
     else
       sleep "$CHECK_INTERVAL"
     fi
