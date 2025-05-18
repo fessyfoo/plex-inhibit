@@ -4,7 +4,7 @@ CHECK_INTERVAL=30
 LOCK_FILE="/run/plex_inhibit/lock"
 
 log_message() {
-  printf "$1\n"
+  echo "$@"
 }
 
 check_plex_traffic() {
