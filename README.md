@@ -14,7 +14,7 @@ will have a limited audience.
 ## Features
 
 - Monitors Plex network traffic on port 32400 using netstat
-- Prevents system sleep when activit is detected
+- Prevents system sleep when activity is detected
 - Releases system sleep prevention when activity stops.
 - Runs as a systemd service
 
