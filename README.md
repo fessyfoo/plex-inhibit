@@ -4,7 +4,9 @@ A systemd service that prevents system idle/sleep when Plex Media Server is acti
 
 ## Overview
 
-Plex Inhibit monitors network traffic (simplisticly)  on Plex's default port (32400) and uses `systemd-inhibit` to prevent the system from going into idle/sleep mode when activity is detected. 
+Plex Inhibit monitors network traffic (simplisticly)  on Plex's default port (32400)
+and uses `systemd-inhibit` to prevent the system from going into idle/sleep mode when
+activity is detected. 
 
 Yes most people just keep servers on all the time so this
 will have a limited audience. 
@@ -57,7 +59,8 @@ If you prefer to install manually, follow these steps:
 
 ## Configuration
 
-The script checks for Plex traffic every 30 seconds by default. You can modify this interval by changing the `CHECK_INTERVAL` variable in the script.
+The script checks for Plex traffic every 30 seconds by default. You can modify this
+interval by changing the `CHECK_INTERVAL` variable in the script.
 
 ## Dependencies
 
